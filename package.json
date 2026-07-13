@@ -1,0 +1,24 @@
+{
+  "name": "ramsey-parcel-search",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local TUI to search Ramsey County, MN attributed parcels by property owner",
+  "bin": {
+    "parcel-search": "./src/cli.jsx"
+  },
+  "scripts": {
+    "refresh-data": "bun run scripts/refresh-data.mjs",
+    "build-db": "bun run scripts/build-db.mjs",
+    "start": "bun run src/cli.jsx",
+    "search": "bun run src/cli.jsx"
+  },
+  "dependencies": {
+    "ink": "^5.1.0",
+    "ink-text-input": "^6.0.0",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "ink-testing-library": "^4.0.0"
+  }
+}
