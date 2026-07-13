@@ -1,0 +1,18 @@
+# Node dependencies — restored via `bun install`
+node_modules/
+
+# Large source/derived data files (hundreds of MB) — regenerate, don't commit.
+# Source GeoPackage + zip from MN Geospatial Commons, and the derived SQLite DB.
+data/
+
+# SQLite write-ahead-log / shared-memory sidecar files
+*.db-wal
+*.db-shm
+
+# Local environment secrets (none needed today, kept for safety)
+.env
+.env.local
+.env.*.local
+
+# macOS Finder metadata
+.DS_Store
