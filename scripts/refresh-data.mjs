@@ -1,14 +1,18 @@
 #!/usr/bin/env bun
-// Download the latest Ramsey County parcel GeoPackage from the Minnesota
-// Geospatial Commons, unzip it into ./data, and (optionally) rebuild the search
-// database. Ramsey County refreshes this dataset monthly.
+// Refresh the local source data for both counties, then optionally rebuild the
+// search database:
+//   - Ramsey:   download + unzip the parcel GeoPackage from the MN Geospatial
+//               Commons (refreshed monthly).
+//   - Hennepin: page the county's public ArcGIS REST service into an NDJSON
+//               cache (via scripts/fetch-hennepin.mjs).
 //
 // Run with:
-//   bun run refresh-data           # download + unzip only
+//   bun run refresh-data           # refresh both counties' source data
 //   bun run refresh-data --build   # …then rebuild data/parcels.db as well
 //
-// Source dataset:
-//   https://gisdata.mn.gov/dataset/us-mn-co-ramsey-plan-parcel-data
+// Source datasets:
+//   Ramsey:   https://gisdata.mn.gov/dataset/us-mn-co-ramsey-plan-parcel-data
+//   Hennepin: https://gis.hennepin.us (LAND_PROPERTY/MapServer, County Parcels)
 
 import { existsSync, statSync, createWriteStream } from "node:fs";
 import { rm } from "node:fs/promises";
@@ -88,8 +92,14 @@ async function unzip(zip, outDir) {
 }
 
 try {
+  // Ramsey: single GeoPackage from the MN Geospatial Commons.
+  console.log("[1/2] Ramsey County");
   await download(ZIP_URL, zipPath);
   await unzip(zipPath, dataDir);
+
+  // Hennepin: paged from the county's ArcGIS REST service (its own script).
+  console.log("\n[2/2] Hennepin County");
+  await run("bun", ["run", join(__dirname, "fetch-hennepin.mjs")]);
 
   if (runBuild) {
     console.log("\nRebuilding search database…");

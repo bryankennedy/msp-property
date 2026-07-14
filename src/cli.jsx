@@ -47,8 +47,10 @@ function Detail({ rowid }) {
     <Box flexDirection="column" marginTop={1}>
       <Text bold color="cyan">
         {txt(r.OwnerName)}
+        <Text color="gray">{has(r.County) ? `   — ${r.County} County` : ""}</Text>
       </Text>
       <Box flexDirection="column" marginTop={1}>
+        <Row label="County" value={has(r.County) ? `${r.County} County` : "—"} />
         <Row label="Parcel ID" value={txt(r.ParcelID)} />
         <Row label="Owner" value={owner || "—"} />
         <Row label="Ownership" value={txt(r.OwnershipCategory)} />
@@ -111,6 +113,14 @@ function Results({ rows, selected, windowSize }) {
 
   return (
     <Box flexDirection="column" marginTop={1}>
+      <Text color="gray" dimColor>
+        {"  "}
+        {"County".padEnd(9)} {" "}
+        {"Owner".padEnd(30)} {" "}
+        {"Site address".padEnd(24)} {" "}
+        {"City".padEnd(16)} {" "}
+        {"Est. value".padStart(12)}
+      </Text>
       {view.map((row, i) => {
         const idx = start + i;
         const active = idx === selected;
@@ -118,9 +128,10 @@ function Results({ rows, selected, windowSize }) {
           <Box key={row.rowid}>
             <Text color={active ? "cyan" : undefined} inverse={active}>
               {active ? "› " : "  "}
-              {txt(row.OwnerName).padEnd(34).slice(0, 34)} {" "}
-              {txt(row.SiteAddress).padEnd(26).slice(0, 26)} {" "}
-              {txt(row.SiteCityName).padEnd(18).slice(0, 18)} {" "}
+              {txt(row.County).padEnd(9).slice(0, 9)} {" "}
+              {txt(row.OwnerName).padEnd(30).slice(0, 30)} {" "}
+              {txt(row.SiteAddress).padEnd(24).slice(0, 24)} {" "}
+              {txt(row.SiteCityName).padEnd(16).slice(0, 16)} {" "}
               {usd(row.EMVTotal).padStart(12)}
             </Text>
           </Box>
@@ -190,7 +201,7 @@ export function App({ total }) {
     <Box flexDirection="column">
       <Box>
         <Text bold color="green">
-          Ramsey County, MN — Parcel Search
+          Ramsey + Hennepin County, MN — Parcel Search
         </Text>
         <Text color="gray">  ({total.toLocaleString()} parcels)</Text>
       </Box>

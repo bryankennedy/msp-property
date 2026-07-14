@@ -49,7 +49,7 @@ function toAddrQuery(input) {
   return tokens.map((t) => `"${t}"`).join(" AND ");
 }
 
-const SUMMARY_COLS = `p.rowid, p."ParcelID", p."OwnerName", p."SiteAddress", p."SiteCityName", p."EMVTotal"`;
+const SUMMARY_COLS = `p.rowid, p."County", p."ParcelID", p."OwnerName", p."SiteAddress", p."SiteCityName", p."EMVTotal"`;
 
 // Search parcels by owner / taxpayer name. Returns lightweight summary rows
 // ordered by relevance (bm25). `limit` caps results.
