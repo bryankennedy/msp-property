@@ -10,11 +10,12 @@ Ramsey County, MN — Parcel Search  (167,643 parcels)
 
 Owner name: doe
 
-› JANE DOE   JOHN DOE                 100 MAPLE ST                SAINT PAUL             $274,100
-  DOE HOLDINGS LLC                   42 CEDAR CT                 MAPLEWOOD              $631,900
-  ...
-3 matches · ↑↓ move · Enter open · Ctrl+C quit
+› JANE DOE          100 MAPLE ST  SAINT PAUL  $274,100
+  DOE HOLDINGS LLC  42 CEDAR CT   MAPLEWOOD   $631,900
+2 matches · ↑↓ move · Enter open · Ctrl+C quit
 ```
+
+<sub>Example output uses fictional owners and addresses.</sub>
 
 ## Data source
 
