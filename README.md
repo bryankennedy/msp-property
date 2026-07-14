@@ -8,13 +8,14 @@ no network access after the one-time data download.
 ```
 Ramsey County, MN — Parcel Search  (167,643 parcels)
 
-Owner name: larose
+Owner name: doe
 
-› SHAWN LAROSE   LYNN LAROSE          1091 BURNS AVE              SAINT PAUL             $290,800
-  THOMAS OLIVER LAROSE               34 FARRELL ST N             MAPLEWOOD              $279,900
-  ...
-3 matches · ↑↓ move · Enter open · Ctrl+C quit
+› JANE DOE          100 MAPLE ST  SAINT PAUL  $274,100
+  DOE HOLDINGS LLC  42 CEDAR CT   MAPLEWOOD   $631,900
+2 matches · ↑↓ move · Enter open · Ctrl+C quit
 ```
+
+<sub>Example output uses fictional owners and addresses.</sub>
 
 ## Data source
 
