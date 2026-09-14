@@ -49,12 +49,11 @@ assert(/FLEX HOLDING LLC/.test(lastFrame()), "Esc returns to results list");
 stdin.write("\t");
 await sleep(50);
 assert(/Searching by/.test(lastFrame()) && /address/.test(lastFrame()), "Tab switches to address search");
-// clear the previous owner query, then type an address (space out the
-// backspaces — rapid consecutive writes get coalesced and dropped)
-for (let i = 0; i < "flex holding".length; i++) {
-  stdin.write("\x7f");
-  await sleep(15);
-}
+// clear the previous owner query with a burst of backspaces in one chunk — how a
+// held-down key arrives from a real terminal
+stdin.write("\x7f".repeat("flex holding".length));
+await sleep(50);
+assert(/Address:\s+e\.g\./.test(lastFrame()), "one-chunk backspace burst fully clears the search box");
 stdin.write("labore rd");
 await sleep(250); // wait past the 100ms debounce
 const afterAddr = lastFrame();
@@ -62,10 +61,10 @@ assert(/LABORE RD/.test(afterAddr), "address search (Ramsey) shows LABORE RD res
 assert(/match/.test(afterAddr), "address search shows match count footer");
 
 // 6. address search that only Hennepin can answer (Minneapolis is in Hennepin)
-for (let i = 0; i < "labore rd".length; i++) {
-  stdin.write("\x7f");
-  await sleep(15);
-}
+// separate backspaces with no pause, so they land before a re-render
+for (let i = 0; i < "labore rd".length; i++) stdin.write("\x7f");
+await sleep(50);
+assert(/Address:\s+e\.g\./.test(lastFrame()), "rapid separate backspaces fully clear the search box");
 stdin.write("nicollet ave minneapolis");
 await sleep(250);
 const afterHenn = lastFrame();

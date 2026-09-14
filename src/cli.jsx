@@ -4,9 +4,8 @@
 //
 // Run with:  bun run search   (or ./src/cli.jsx)
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useReducer } from "react";
 import { render, Box, Text, useApp, useInput, useStdout } from "ink";
-import TextInput from "ink-text-input";
 import { searchByOwner, searchByAddress, getByRowid, totalCount } from "./db.mjs";
 
 // ---------- formatting helpers ----------
@@ -148,11 +147,53 @@ function Results({ rows, selected, windowSize }) {
   );
 }
 
+// ---------- search box ----------
+// A small line editor in place of ink-text-input. Ink treats each stdin chunk as
+// one key, so a held-down backspace can arrive as "\x7f\x7f\x7f" — which Ink
+// doesn't recognize, and TextInput inserted as invisible characters. TextInput
+// also read stale state for keys that landed before a re-render, dropping them.
+// A reducer that walks every byte of the chunk avoids both.
+function editLine({ value, cursor }, { input, key }) {
+  if (key.leftArrow) return { value, cursor: Math.max(0, cursor - 1) };
+  if (key.rightArrow) return { value, cursor: Math.min(value.length, cursor + 1) };
+  if (key.backspace || key.delete) input = "\x7f";
+  for (const ch of input) {
+    if (ch === "\x7f" || ch === "\b") {
+      if (cursor > 0) {
+        value = value.slice(0, cursor - 1) + value.slice(cursor);
+        cursor--;
+      }
+    } else if (ch >= " ") {
+      value = value.slice(0, cursor) + ch + value.slice(cursor);
+      cursor += ch.length;
+    }
+  }
+  return { value, cursor };
+}
+
+function SearchBox({ value, cursor, placeholder }) {
+  if (!value) {
+    return (
+      <Text>
+        <Text inverse>{placeholder[0]}</Text>
+        <Text color="gray">{placeholder.slice(1)}</Text>
+      </Text>
+    );
+  }
+  return (
+    <Text>
+      {value.slice(0, cursor)}
+      <Text inverse>{value[cursor] ?? " "}</Text>
+      {value.slice(cursor + 1)}
+    </Text>
+  );
+}
+
 // ---------- app ----------
 export function App({ total }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
-  const [query, setQuery] = useState("");
+  const [{ value: query, cursor }, edit] = useReducer(editLine, { value: "", cursor: 0 });
   const [rows, setRows] = useState([]);
   const [selected, setSelected] = useState(0);
   const [mode, setMode] = useState("search"); // "search" | "detail"
@@ -194,6 +235,8 @@ export function App({ total }) {
         setDetailRowid(rows[selected].rowid);
         setMode("detail");
       }
+    } else {
+      edit({ input, key });
     }
   });
 
@@ -210,9 +253,9 @@ export function App({ total }) {
         <>
           <Box marginTop={1}>
             <Text>{searchBy === "address" ? "Address:    " : "Owner name: "}</Text>
-            <TextInput
+            <SearchBox
               value={query}
-              onChange={setQuery}
+              cursor={cursor}
               placeholder={
                 searchBy === "address"
                   ? "e.g. 1930 rice st  /  labore rd"
