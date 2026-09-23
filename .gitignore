@@ -2,7 +2,7 @@
 node_modules/
 
 # Large source/derived data files (hundreds of MB) — regenerate, don't commit.
-# Source GeoPackage + zip from MN Geospatial Commons, and the derived SQLite DB.
+# Per-county NDJSON caches from the ArcGIS services, and the derived SQLite DB.
 data/
 
 # SQLite write-ahead-log / shared-memory sidecar files

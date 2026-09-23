@@ -8,7 +8,7 @@ county it came from. Everything runs on your machine — no network access after
 the one-time data download.
 
 ```
-Ramsey + Hennepin County, MN — Parcel Search  (615,727 parcels)
+Ramsey + Hennepin County, MN — Parcel Search  (615,906 parcels)
 
 Owner name: doe
 
@@ -22,23 +22,23 @@ Owner name: doe
 
 ## Data sources
 
-Both are official public datasets. They have different schemas, so `build-db`
-normalizes them into one shared `parcels` table with a `County` column.
+Both are official public datasets served from each county's ArcGIS REST service.
+Neither offers a single file download, so `fetch-ramsey.mjs` and
+`fetch-hennepin.mjs` page each layer into a local NDJSON cache. The two counties
+have different schemas, so `build-db` normalizes them into one shared `parcels`
+table with a `County` column.
 
-**Ramsey County Parcel Data** — Minnesota Geospatial Commons, distributed as an
-OGC GeoPackage and refreshed monthly:
+**Ramsey County Attributed Parcel Points** — listed on the Minnesota Geospatial
+Commons (https://gis.data.mn.gov) and refreshed monthly:
 
-- Dataset page: https://gisdata.mn.gov/dataset/us-mn-co-ramsey-plan-parcel-data
-- GeoPackage download:
-  https://resources.gisdata.mn.gov/pub/gdrs/data/pub/us_mn_co_ramsey/plan_parcel_data/gpkg_plan_parcel_data.zip
+- Service: `https://gis.ramseycountymn.gov/server/rest/services/Cadastral/CAD_AttributedParcelPoint_ViewOnly/FeatureServer/0`
 
-The tool reads the `plan_attributedparcelpoint` layer (one fully-attributed row
-per parcel: owner, taxpayer, site address, land use, structure, valuation, taxes,
-last sale, coordinates).
+One fully-attributed row per parcel: owner, taxpayer, site address, land use,
+structure, valuation, taxes, last sale, coordinates. (This replaced the
+`plan_attributedparcelpoint` GeoPackage, which was retired when the Geospatial
+Commons moved to ArcGIS Hub in 2026. The field names are unchanged.)
 
-**Hennepin County Parcels** — the county's public ArcGIS REST service. There's no
-single file download, so `fetch-hennepin.mjs` pages the layer into a local NDJSON
-cache:
+**Hennepin County Parcels**:
 
 - Service: `https://gis.hennepin.us/arcgis/rest/services/HennepinData/LAND_PROPERTY/MapServer/1`
   (layer "County Parcels")
@@ -58,7 +58,7 @@ the Hennepin data and simply display as `—` for those parcels.
 bun install
 
 # 1. Fetch both counties' source data into ./data:
-#    - Ramsey:   ~175 MB zip → ~750 MB .gpkg (downloaded + unzipped)
+#    - Ramsey:   ~170k parcels paged into a ~150 MB NDJSON cache
 #    - Hennepin: ~450k parcels paged into a ~270 MB NDJSON cache
 bun run refresh-data
 
@@ -66,9 +66,8 @@ bun run refresh-data
 bun run build-db
 ```
 
-`refresh-data` pulls the current Ramsey GeoPackage from the Minnesota Geospatial
-Commons and pages Hennepin's parcels from its ArcGIS service. Pass `--build` to
-rebuild the search database in the same step:
+`refresh-data` pages both counties' parcels from their ArcGIS services. Pass
+`--build` to rebuild the search database in the same step:
 
 ```bash
 bun run refresh-data --build
@@ -78,10 +77,8 @@ bun run refresh-data --build
 <summary>Prefer to fetch each county by hand?</summary>
 
 ```bash
-# Ramsey GeoPackage
-curl -L -o data/gpkg_plan_parcel_data.zip \
-  https://resources.gisdata.mn.gov/pub/gdrs/data/pub/us_mn_co_ramsey/plan_parcel_data/gpkg_plan_parcel_data.zip
-cd data && unzip -o gpkg_plan_parcel_data.zip && cd ..
+# Ramsey parcels (paged from ArcGIS into data/ramsey_parcels.ndjson)
+bun run scripts/fetch-ramsey.mjs
 
 # Hennepin parcels (paged from ArcGIS into data/hennepin_parcels.ndjson)
 bun run scripts/fetch-hennepin.mjs
@@ -93,8 +90,17 @@ FTS5 indexes — one over the owner/taxpayer name fields, and a trigram index ov
 the site address (+ city + ZIP) for fuzzy address matching — so searches are
 instant. If the Hennepin cache is missing it builds Ramsey-only and warns.
 
+### Offline copies
+
+The NDJSON caches in `data/` are your local copy of the source data. A fetch
+writes to a `.part` file and replaces the cache only once it completes, so if a
+county's service is down or changes, the previous cache stays put and
+`bun run build-db` still rebuilds from it. `data/` is git-ignored, so back it up
+somewhere else (another disk, cloud storage) if you want a copy that survives
+losing this machine.
+
 > Already have a `data/parcels.db` from before address search existed? Add the
-> address index without rebuilding from the GeoPackage:
+> address index without a full rebuild:
 >
 > ```bash
 > bun run scripts/add-address-index.mjs
@@ -129,13 +135,15 @@ bun run refresh-data --build
 | Path | Purpose |
 |------|---------|
 | `scripts/refresh-data.mjs` | Fetches both counties' source data (`--build` also rebuilds the DB) |
+| `scripts/fetch-ramsey.mjs` | Pages Ramsey parcels from ArcGIS into `data/ramsey_parcels.ndjson` |
 | `scripts/fetch-hennepin.mjs` | Pages Hennepin parcels from ArcGIS into `data/hennepin_parcels.ndjson` |
+| `scripts/arcgis.mjs` | Shared ArcGIS layer → NDJSON pager used by both fetch scripts |
 | `scripts/build-db.mjs` | Normalizes both counties into `data/parcels.db` (+ name & address FTS indexes) |
 | `scripts/add-address-index.mjs` | Adds the fuzzy address index to an existing DB (no rebuild) |
 | `src/db.mjs` | Read-only data access: owner search, fuzzy address search, record fetch |
 | `src/cli.jsx` | Ink full-screen TUI |
 | `scripts/tui-smoke.mjs` | Headless smoke test of the TUI |
-| `data/` | Source data (GeoPackage + Hennepin NDJSON) + derived DB (git-ignored; regenerate locally) |
+| `data/` | Source data (Ramsey + Hennepin NDJSON caches) + derived DB (git-ignored; regenerate locally) |
 
 ## Test
 

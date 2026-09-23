@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
-// Build a lean, searchable SQLite database from the Ramsey County GeoPackage.
+// Build a lean, searchable SQLite database from the cached county parcel data.
 //
-// Source: data/plan_parcel_data.gpkg  (table: plan_attributedparcelpoint)
+// Sources (NDJSON caches written by scripts/refresh-data.mjs):
+//   - data/ramsey_parcels.ndjson    (required; fetch-ramsey.mjs)
+//   - data/hennepin_parcels.ndjson  (optional; fetch-hennepin.mjs)
 // Output: data/parcels.db
 //   - `parcels`     : one row per parcel, key attribute fields only (no geometry)
 //   - `parcels_fts` : FTS5 full-text index over owner/taxpayer names for fast search
@@ -10,24 +12,27 @@
 // Uses Bun's built-in SQLite driver (bun:sqlite).
 
 import { Database } from "bun:sqlite";
-import { existsSync, rmSync, readFileSync } from "node:fs";
+import { existsSync, rmSync, readFileSync, renameSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dataDir = join(__dirname, "..", "data");
-const gpkgPath = join(dataDir, "plan_parcel_data.gpkg");
+const ramseyPath = join(dataDir, "ramsey_parcels.ndjson");
 const hennepinPath = join(dataDir, "hennepin_parcels.ndjson");
 const outPath = join(dataDir, "parcels.db");
+// Build under a temp name and swap it in at the end, so a failed build never
+// destroys the last working database.
+const buildPath = `${outPath}.building`;
 
-if (!existsSync(gpkgPath)) {
-  console.error(`GeoPackage not found at ${gpkgPath}`);
-  console.error("Download it first (see README), then re-run this script.");
+if (!existsSync(ramseyPath)) {
+  console.error(`Ramsey parcel cache not found at ${ramseyPath}`);
+  console.error("Run `bun run refresh-data` first, then re-run this script.");
   process.exit(1);
 }
 
-// Columns we keep from plan_attributedparcelpoint. Order matters: it defines the
-// `parcels` schema below.
+// Columns we keep. Ramsey's ArcGIS layer uses these exact field names; Hennepin
+// is mapped onto them. Order matters: it defines the `parcels` schema below.
 const COLUMNS = [
   "ParcelID",
   "OwnershipCategory",
@@ -64,6 +69,18 @@ const COLUMNS = [
   "Latitude",
   "Longitude",
 ];
+
+// Normalize one raw Ramsey ArcGIS attribute record into the shared schema. Field
+// names already match COLUMNS; only LastSaleDate needs converting, from ArcGIS
+// epoch milliseconds to the YYYY-MM-DD string the TUI displays.
+function mapRamsey(a) {
+  const m = {};
+  for (const c of COLUMNS) m[c] = a[c] ?? null;
+  if (typeof m.LastSaleDate === "number") {
+    m.LastSaleDate = new Date(m.LastSaleDate).toISOString().slice(0, 10);
+  }
+  return m;
+}
 
 // Normalize one raw Hennepin ArcGIS attribute record into the shared schema.
 // Returns an object keyed by COLUMNS; unmapped fields are null. Hennepin values
@@ -144,19 +161,19 @@ function mapHennepin(a) {
   };
 }
 
-// Read the cached Hennepin NDJSON and bulk-insert normalized rows (single
-// transaction for speed).
-function ingestHennepin(db, path) {
+// Read a cached county NDJSON file and bulk-insert rows normalized by `map`
+// (single transaction for speed).
+function ingestNdjson(db, path, county, map) {
   const insert = db.prepare(
     `INSERT INTO parcels ("County", ${COLUMNS.map((c) => `"${c}"`).join(", ")})
-     VALUES ('Hennepin', ${COLUMNS.map(() => "?").join(", ")})`,
+     VALUES (?, ${COLUMNS.map(() => "?").join(", ")})`,
   );
   const lines = readFileSync(path, "utf8").split("\n");
   const run = db.transaction(() => {
     for (const line of lines) {
       if (!line) continue;
-      const m = mapHennepin(JSON.parse(line));
-      insert.run(...COLUMNS.map((c) => m[c]));
+      const m = map(JSON.parse(line));
+      insert.run(county, ...COLUMNS.map((c) => m[c]));
     }
   });
   run();
@@ -164,12 +181,12 @@ function ingestHennepin(db, path) {
 
 // Start fresh so reruns are deterministic.
 for (const suffix of ["", "-wal", "-shm"]) {
-  const p = outPath + suffix;
+  const p = buildPath + suffix;
   if (existsSync(p)) rmSync(p);
 }
 
 console.log("Opening output database…");
-const db = new Database(outPath, { create: true });
+const db = new Database(buildPath, { create: true });
 db.exec("PRAGMA journal_mode = WAL;");
 db.exec("PRAGMA synchronous = OFF;");
 
@@ -184,28 +201,19 @@ db.exec(`
   );
 `);
 
-console.log("Attaching GeoPackage and copying Ramsey rows…");
-db.exec(`ATTACH DATABASE '${gpkgPath.replace(/'/g, "''")}' AS gpkg;`);
-
-const colList = COLUMNS.map((c) => `"${c}"`).join(", ");
-db.exec(`
-  INSERT INTO parcels ("County", ${colList})
-  SELECT 'Ramsey', ${colList}
-  FROM gpkg.plan_attributedparcelpoint;
-`);
-db.exec("DETACH DATABASE gpkg;");
+console.log("Ingesting Ramsey rows…");
+ingestNdjson(db, ramseyPath, "Ramsey", mapRamsey);
 
 const ramseyCount = db.query("SELECT COUNT(*) AS n FROM parcels").get().n;
 console.log(`Copied ${ramseyCount.toLocaleString()} Ramsey parcels.`);
 
 // ---- Hennepin County ----
-// Hennepin has no single GeoPackage; scripts/fetch-hennepin.mjs caches its
-// parcels as NDJSON (raw ArcGIS attributes). Normalize each record into the
-// shared schema here. Fields Hennepin doesn't publish (bedrooms, living area,
+// scripts/fetch-hennepin.mjs caches Hennepin's parcels as NDJSON (raw ArcGIS
+// attributes). Normalize each record into the shared schema here. Fields Hennepin doesn't publish (bedrooms, living area,
 // structure type, etc.) are left null and simply show as "—" in the TUI.
 if (existsSync(hennepinPath)) {
   console.log("Ingesting Hennepin rows…");
-  ingestHennepin(db, hennepinPath);
+  ingestNdjson(db, hennepinPath, "Hennepin", mapHennepin);
   const hennCount = db.query("SELECT COUNT(*) AS n FROM parcels WHERE County='Hennepin'").get().n;
   console.log(`Copied ${hennCount.toLocaleString()} Hennepin parcels.`);
 } else {
@@ -264,6 +272,16 @@ db.exec(`CREATE INDEX idx_parcels_parcelid ON parcels("ParcelID");`);
 // Checkpoint the WAL into the main file so the DB is a single portable file.
 db.exec("PRAGMA wal_checkpoint(TRUNCATE);");
 db.exec("PRAGMA optimize;");
+// Leave WAL mode so the file opens standalone (read-only opens of a WAL database
+// need writable -wal/-shm sidecars).
+db.exec("PRAGMA journal_mode = DELETE;");
 db.close();
+
+// Swap the finished database into place.
+for (const suffix of ["-wal", "-shm"]) {
+  rmSync(buildPath + suffix, { force: true });
+  rmSync(outPath + suffix, { force: true });
+}
+renameSync(buildPath, outPath);
 
 console.log(`\nDone. Wrote ${outPath}`);

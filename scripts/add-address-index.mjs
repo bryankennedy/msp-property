@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // One-time migration: add the fuzzy address search index to an existing
-// data/parcels.db without rebuilding from the GeoPackage.
+// data/parcels.db without a full rebuild.
 //
 // Fresh builds (`bun run build-db`) already create this index; this script is
 // only for databases built before address search existed. Safe to re-run.
