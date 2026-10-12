@@ -62,9 +62,7 @@ export async function fetchLayerToNdjson({ label, layer, outFields, outPath, pag
     const feats = res.features ?? [];
     for (const f of feats) out.write(JSON.stringify(f.attributes) + "\n");
     written += feats.length;
-    process.stdout.write(
-      `\r  ${written.toLocaleString()} / ${total.toLocaleString()} parcels`,
-    );
+    process.stdout.write(`\r  ${written.toLocaleString()} / ${total.toLocaleString()} parcels`);
     // Stop when the service says there is no more, or a short page comes back.
     if (!res.exceededTransferLimit && feats.length < page) break;
     if (feats.length === 0) break;

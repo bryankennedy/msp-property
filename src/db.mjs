@@ -14,9 +14,7 @@ let db;
 export function open() {
   if (db) return db;
   if (!existsSync(DB_PATH)) {
-    throw new Error(
-      `Database not found at ${DB_PATH}. Run \`bun run build-db\` first.`,
-    );
+    throw new Error(`Database not found at ${DB_PATH}. Run \`bun run build-db\` first.`);
   }
   db = new Database(DB_PATH, { readonly: true });
   return db;

@@ -100,8 +100,7 @@ function mapHennepin(a) {
 
   // Sale date arrives as YYYYMM (e.g. "201412"); render as YYYY-MM for display.
   const sale = s(a.SALE_DATE);
-  const saleDate =
-    sale && /^\d{6}$/.test(sale) ? `${sale.slice(0, 4)}-${sale.slice(4, 6)}` : sale;
+  const saleDate = sale && /^\d{6}$/.test(sale) ? `${sale.slice(0, 4)}-${sale.slice(4, 6)}` : sale;
 
   // PID is the 13-digit parcel id; format it as Hennepin's standard
   // XX-XXX-XX-XX-XXXX. (PID_TEXT is an unrelated internal marker, not the id.)
@@ -114,7 +113,13 @@ function mapHennepin(a) {
   // Homestead code → readable label to match Ramsey's descriptive category.
   const hmstd = s(a.HMSTD_CD1);
   const ownership =
-    hmstd === "Y" ? "Homestead" : hmstd === "N" ? "Non-homestead" : hmstd === "F" ? "Fractional homestead" : hmstd;
+    hmstd === "Y"
+      ? "Homestead"
+      : hmstd === "N"
+        ? "Non-homestead"
+        : hmstd === "F"
+          ? "Fractional homestead"
+          : hmstd;
 
   // TAXPAYER_NM is the name; TAXPAYER_NM_1/_2 are mailing-address lines (a street
   // line and usually a "CITY ST ZIP" line, occasionally a second street line).

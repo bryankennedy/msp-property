@@ -1,0 +1,12 @@
+# Prettier 3 also reads .gitignore, so node_modules/ and the built database are
+# already excluded there. This file only lists tracked files that must stay out
+# of the formatter.
+
+# Bun lockfile — machine-generated
+bun.lock
+
+# Markdown is deliberately unformatted, as it is fleet-wide (INFRA-158, and
+# progress's docs/decisions/prettier-adoption.md): Prettier pipe-pads tables so
+# any cell edit re-pads the whole table — the giant whitespace diffs this setup
+# exists to prevent — and rewrites *italic* as _italic_ across hand-written docs.
+*.md

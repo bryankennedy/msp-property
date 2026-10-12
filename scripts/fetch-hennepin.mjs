@@ -14,8 +14,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { fetchLayerToNdjson } from "./arcgis.mjs";
 
-const LAYER =
-  "https://gis.hennepin.us/arcgis/rest/services/HennepinData/LAND_PROPERTY/MapServer/1";
+const LAYER = "https://gis.hennepin.us/arcgis/rest/services/HennepinData/LAND_PROPERTY/MapServer/1";
 
 // Only the attributes build-db maps into the shared schema — keeps the cache
 // small and the requests fast.

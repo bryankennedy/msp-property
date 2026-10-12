@@ -58,7 +58,10 @@ assert(/^› /.test(lastFrame().split("\n")[8]), "wheel down moves the selection
 stdin.write("\x1b[<64;10;8M"); // wheel up
 await sleep(50);
 assert(/^› /.test(lastFrame().split("\n")[7]), "wheel up moves the selection back");
-assert(/Owner name:\s+flex holding\s*$/m.test(lastFrame()), "mouse input never lands in the search box");
+assert(
+  /Owner name:\s+flex holding\s*$/m.test(lastFrame()),
+  "mouse input never lands in the search box",
+);
 stdin.write("\x1b[<0;20;3M\x1b[<0;20;3m"); // click the search box: nothing opens
 await sleep(50);
 assert(/Searching by/.test(lastFrame()), "clicking outside the results opens nothing");
@@ -67,7 +70,10 @@ await sleep(100);
 const clicked = lastFrame();
 assert(/Parcel ID/.test(clicked), "clicking a result opens its record");
 const siteLine = clicked.split("\n").find((l) => l.startsWith("Site address")) ?? "";
-assert(siteLine.slice(16).startsWith(secondAddr), `clicked record is the one clicked (${secondAddr})`);
+assert(
+  siteLine.slice(16).startsWith(secondAddr),
+  `clicked record is the one clicked (${secondAddr})`,
+);
 stdin.write("\x1b[<0;20;8m"); // the release lands in the detail view and is ignored
 await sleep(50);
 assert(/Parcel ID/.test(lastFrame()), "a stray release in the detail view does nothing");
@@ -77,12 +83,18 @@ await sleep(100);
 // 5. toggle to address search with Tab and query a site address
 stdin.write("\t");
 await sleep(50);
-assert(/Searching by/.test(lastFrame()) && /address/.test(lastFrame()), "Tab switches to address search");
+assert(
+  /Searching by/.test(lastFrame()) && /address/.test(lastFrame()),
+  "Tab switches to address search",
+);
 // clear the previous owner query with a burst of backspaces in one chunk — how a
 // held-down key arrives from a real terminal
 stdin.write("\x7f".repeat("flex holding".length));
 await sleep(50);
-assert(/Address:\s+e\.g\./.test(lastFrame()), "one-chunk backspace burst fully clears the search box");
+assert(
+  /Address:\s+e\.g\./.test(lastFrame()),
+  "one-chunk backspace burst fully clears the search box",
+);
 stdin.write("labore rd");
 await sleep(250); // wait past the 100ms debounce
 const afterAddr = lastFrame();
@@ -93,7 +105,10 @@ assert(/match/.test(afterAddr), "address search shows match count footer");
 // separate backspaces with no pause, so they land before a re-render
 for (let i = 0; i < "labore rd".length; i++) stdin.write("\x7f");
 await sleep(50);
-assert(/Address:\s+e\.g\./.test(lastFrame()), "rapid separate backspaces fully clear the search box");
+assert(
+  /Address:\s+e\.g\./.test(lastFrame()),
+  "rapid separate backspaces fully clear the search box",
+);
 stdin.write("nicollet ave minneapolis");
 await sleep(250);
 const afterHenn = lastFrame();
@@ -106,11 +121,17 @@ assert(/Hennepin/.test(afterHenn), "Hennepin results are tagged Hennepin");
 const lines = afterHenn.split("\n");
 assert(lines.length < 24, `long result list fits the terminal (${lines.length} < 24 lines)`);
 assert(/^Address:/.test(lines[2]), "search box stays on the third line");
-assert(lines.every((l) => l.length <= 100), "no line is wider than the terminal");
+assert(
+  lines.every((l) => l.length <= 100),
+  "no line is wider than the terminal",
+);
 stdin.write(" and a very long tail that runs well past the edge of the terminal window");
 await sleep(250);
 const longLines = lastFrame().split("\n");
-assert(/^Address:/.test(longLines[2]) && /window\s*$/.test(longLines[2]), "long query scrolls sideways on one line, cursor in view");
+assert(
+  /^Address:/.test(longLines[2]) && /window\s*$/.test(longLines[2]),
+  "long query scrolls sideways on one line, cursor in view",
+);
 assert(/Searching by/.test(longLines[3]), "long query does not wrap onto the next line");
 
 console.log(failures === 0 ? "\nALL PASSED" : `\n${failures} FAILED`);

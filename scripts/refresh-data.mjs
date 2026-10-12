@@ -30,9 +30,7 @@ function run(cmd, args, opts = {}) {
     const child = spawn(cmd, args, { stdio: "inherit", ...opts });
     child.on("error", reject);
     child.on("close", (code) =>
-      code === 0
-        ? resolve()
-        : reject(new Error(`${cmd} exited with code ${code}`)),
+      code === 0 ? resolve() : reject(new Error(`${cmd} exited with code ${code}`)),
     );
   });
 }

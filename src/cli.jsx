@@ -12,7 +12,11 @@ import { searchByOwner, searchByAddress, getByRowid, totalCount } from "./db.mjs
 const usd = (v) =>
   v == null || v === ""
     ? "—"
-    : Number(v).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+    : Number(v).toLocaleString("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+      });
 const num = (v) => (v == null || v === "" ? "—" : Number(v).toLocaleString("en-US"));
 const txt = (v) => (v == null || String(v).trim() === "" ? "—" : String(v).trim());
 const has = (v) => v != null && String(v).trim() !== "";
@@ -82,10 +86,7 @@ function Detail({ rowid }) {
           value={`${usd(r.TotalTax)}${has(r.TaxYear) ? `  (${r.TaxYear})` : ""}`}
         />
         <Row label="Last sale" value={`${date(r.LastSaleDate)}   ${usd(r.SalePrice)}`} />
-        <Row
-          label="Coordinates"
-          value={has(r.Latitude) ? `${r.Latitude}, ${r.Longitude}` : "—"}
-        />
+        <Row label="Coordinates" value={has(r.Latitude) ? `${r.Latitude}, ${r.Longitude}` : "—"} />
       </Box>
       <Box marginTop={1}>
         <Text color="gray">Esc / ← back to results · Ctrl+C quit</Text>
@@ -117,10 +118,7 @@ function Results({ rows, selected, windowSize }) {
     <Box flexDirection="column" marginTop={1}>
       <Text color="gray" dimColor wrap="truncate-end">
         {"  "}
-        {"County".padEnd(9)} {" "}
-        {"Owner".padEnd(30)} {" "}
-        {"Site address".padEnd(24)} {" "}
-        {"City".padEnd(16)} {" "}
+        {"County".padEnd(9)} {"Owner".padEnd(30)} {"Site address".padEnd(24)} {"City".padEnd(16)}{" "}
         {"Est. value".padStart(12)}
       </Text>
       {view.map((row, i) => {
@@ -130,11 +128,9 @@ function Results({ rows, selected, windowSize }) {
           <Box key={row.rowid}>
             <Text color={active ? "cyan" : undefined} inverse={active} wrap="truncate-end">
               {active ? "› " : "  "}
-              {txt(row.County).padEnd(9).slice(0, 9)} {" "}
-              {txt(row.OwnerName).padEnd(30).slice(0, 30)} {" "}
-              {txt(row.SiteAddress).padEnd(24).slice(0, 24)} {" "}
-              {txt(row.SiteCityName).padEnd(16).slice(0, 16)} {" "}
-              {usd(row.EMVTotal).padStart(12)}
+              {txt(row.County).padEnd(9).slice(0, 9)} {txt(row.OwnerName).padEnd(30).slice(0, 30)}{" "}
+              {txt(row.SiteAddress).padEnd(24).slice(0, 24)}{" "}
+              {txt(row.SiteCityName).padEnd(16).slice(0, 16)} {usd(row.EMVTotal).padStart(12)}
             </Text>
           </Box>
         );
@@ -142,8 +138,8 @@ function Results({ rows, selected, windowSize }) {
       <Box marginTop={1}>
         <Text color="gray" wrap="truncate-end">
           {rows.length} match{rows.length === 1 ? "" : "es"}
-          {rows.length >= 200 ? " (showing first 200 — refine search)" : ""} · ↑↓ move · Enter
-          or click open · Ctrl+C quit
+          {rows.length >= 200 ? " (showing first 200 — refine search)" : ""} · ↑↓ move · Enter or
+          click open · Ctrl+C quit
         </Text>
       </Box>
     </Box>
@@ -334,7 +330,7 @@ export function App({ total }) {
         <Text bold color="green">
           Ramsey + Hennepin County, MN — Parcel Search
         </Text>
-        <Text color="gray">  ({total.toLocaleString()} parcels)</Text>
+        <Text color="gray"> ({total.toLocaleString()} parcels)</Text>
       </Text>
 
       {mode === "search" ? (
@@ -357,8 +353,8 @@ export function App({ total }) {
               Searching by{" "}
               <Text color="cyan" bold>
                 {searchBy === "address" ? "address" : "owner name"}
-              </Text>
-              {" "}· Tab to search by {searchBy === "address" ? "owner name" : "address"}
+              </Text>{" "}
+              · Tab to search by {searchBy === "address" ? "owner name" : "address"}
             </Text>
           </Box>
           <Results rows={rows} selected={selected} windowSize={windowSize} />
