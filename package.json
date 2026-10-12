@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "description": "Local TUI to search Ramsey County, MN attributed parcels by property owner",
+  "packageManager": "bun@1.3.13",
+  "engines": {
+    "bun": ">=1.3.13"
+  },
   "bin": {
     "parcel-search": "./src/cli.jsx"
   },
