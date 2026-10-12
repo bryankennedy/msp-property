@@ -15,7 +15,7 @@ Owner name: doe
   County    Owner             Address        City         Value
 › Ramsey    JANE DOE          100 MAPLE ST   SAINT PAUL   $274,100
   Hennepin  DOE HOLDINGS LLC  42 CEDAR CT    MINNEAPOLIS  $631,900
-2 matches · ↑↓ move · Enter open · Ctrl+C quit
+2 matches · ↑↓ move · Enter or click open · Ctrl+C quit
 ```
 
 <sub>Example output uses fictional owners and addresses.</sub>
@@ -119,7 +119,10 @@ bun run search          # or: bun run start  /  ./src/cli.jsx
   can appear mid-string (short tokens under 3 characters are ignored).
 - Every result row (and the detail view) is tagged with its **county** — Ramsey
   or Hennepin — since searches span both.
-- `↑` / `↓` to move, `Enter` to open the full record.
+- `↑` / `↓` (or the scroll wheel) to move, `Enter` to open the full record — or
+  click a result to open it. While the results list is up the app takes the
+  mouse, so hold `Shift` (`Option` in iTerm/Terminal.app) to select text; the
+  detail view leaves the mouse to the terminal.
 - `Esc` / `←` to go back to the results, `Ctrl+C` to quit.
 
 ## Updating the data

@@ -45,6 +45,35 @@ stdin.write("\x1b");
 await sleep(100);
 assert(/FLEX HOLDING LLC/.test(lastFrame()), "Esc returns to results list");
 
+// 4b. the mouse (PROP-2): terminals report a click as "\x1b[<button;col;rowM",
+// 1-based. Results start on the seventh line; click the second one and its
+// record opens.
+const resultLines = lastFrame().split("\n");
+const secondRow = resultLines[7];
+assert(/^ {2}\S/.test(secondRow), "a second result row sits on screen row 8");
+const secondAddr = secondRow.slice(2 + 9 + 2 + 30 + 2, 2 + 9 + 2 + 30 + 2 + 24).trim();
+stdin.write("\x1b[<65;10;8M\x1b[<65;10;8M"); // wheel down twice, in one chunk
+await sleep(50);
+assert(/^› /.test(lastFrame().split("\n")[8]), "wheel down moves the selection");
+stdin.write("\x1b[<64;10;8M"); // wheel up
+await sleep(50);
+assert(/^› /.test(lastFrame().split("\n")[7]), "wheel up moves the selection back");
+assert(/Owner name:\s+flex holding\s*$/m.test(lastFrame()), "mouse input never lands in the search box");
+stdin.write("\x1b[<0;20;3M\x1b[<0;20;3m"); // click the search box: nothing opens
+await sleep(50);
+assert(/Searching by/.test(lastFrame()), "clicking outside the results opens nothing");
+stdin.write("\x1b[<0;20;8M");
+await sleep(100);
+const clicked = lastFrame();
+assert(/Parcel ID/.test(clicked), "clicking a result opens its record");
+const siteLine = clicked.split("\n").find((l) => l.startsWith("Site address")) ?? "";
+assert(siteLine.slice(16).startsWith(secondAddr), `clicked record is the one clicked (${secondAddr})`);
+stdin.write("\x1b[<0;20;8m"); // the release lands in the detail view and is ignored
+await sleep(50);
+assert(/Parcel ID/.test(lastFrame()), "a stray release in the detail view does nothing");
+stdin.write("\x1b");
+await sleep(100);
+
 // 5. toggle to address search with Tab and query a site address
 stdin.write("\t");
 await sleep(50);

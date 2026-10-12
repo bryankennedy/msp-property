@@ -95,6 +95,13 @@ function Detail({ rowid }) {
 }
 
 // ---------- results list ----------
+// First row of the window around the selection, so the list fits the terminal.
+function windowStart(selected, count, windowSize) {
+  const half = Math.floor(windowSize / 2);
+  const end = Math.min(count, Math.max(0, selected - half) + windowSize);
+  return Math.max(0, end - windowSize);
+}
+
 function Results({ rows, selected, windowSize }) {
   if (rows.length === 0) {
     return (
@@ -103,12 +110,8 @@ function Results({ rows, selected, windowSize }) {
       </Box>
     );
   }
-  // window the list around the selection so it fits the terminal
-  const half = Math.floor(windowSize / 2);
-  let start = Math.max(0, selected - half);
-  const end = Math.min(rows.length, start + windowSize);
-  start = Math.max(0, end - windowSize);
-  const view = rows.slice(start, end);
+  const start = windowStart(selected, rows.length, windowSize);
+  const view = rows.slice(start, start + windowSize);
 
   return (
     <Box flexDirection="column" marginTop={1}>
@@ -140,7 +143,7 @@ function Results({ rows, selected, windowSize }) {
         <Text color="gray" wrap="truncate-end">
           {rows.length} match{rows.length === 1 ? "" : "es"}
           {rows.length >= 200 ? " (showing first 200 — refine search)" : ""} · ↑↓ move · Enter
-          open · Ctrl+C quit
+          or click open · Ctrl+C quit
         </Text>
       </Box>
     </Box>
@@ -194,6 +197,43 @@ function SearchBox({ value, cursor, placeholder, width }) {
   );
 }
 
+// ---------- mouse ----------
+// SGR mouse reporting: the terminal sends each button press as
+// "\x1b[<button;column;rowM" ("m" on release), 1-based from the top-left of the
+// screen. Ink strips the leading escape and hands the rest to useInput as text,
+// several events to a chunk when they arrive fast (the wheel). While reporting is
+// on, the terminal's own drag-to-select needs a modifier (Shift, or Option in
+// iTerm/Terminal.app), so it stays off in the detail view, where you'd copy a
+// parcel ID.
+const MOUSE_ON = "\x1b[?1000h\x1b[?1006h";
+const MOUSE_OFF = "\x1b[?1000l\x1b[?1006l";
+const MOUSE_CHUNK = /^(?:\x1b?\[<\d+;\d+;\d+[Mm])+$/;
+const MOUSE_EVENT = /\[<(\d+);(\d+);(\d+)([Mm])/g;
+const LEFT_BUTTON = 0;
+const WHEEL_UP = 64;
+const WHEEL_DOWN = 65;
+
+// The mouse events in an input chunk, or null when the chunk isn't mouse input.
+function parseMouse(input) {
+  if (!MOUSE_CHUNK.test(input)) return null;
+  return [...input.matchAll(MOUSE_EVENT)].map(([, button, x, y, end]) => ({
+    button: Number(button),
+    x: Number(x),
+    y: Number(y),
+    press: end === "M",
+  }));
+}
+
+// Mouse reporting on while `active`; off again when it isn't, or on unmount.
+function useMouseReporting(active) {
+  const { stdout } = useStdout();
+  useEffect(() => {
+    if (!active || !stdout?.isTTY) return;
+    stdout.write(MOUSE_ON);
+    return () => stdout.write(MOUSE_OFF);
+  }, [active, stdout]);
+}
+
 // Terminal size that re-renders the app when the window is resized.
 function useTerminalSize() {
   const { stdout } = useStdout();
@@ -225,6 +265,12 @@ export function App({ total }) {
   // output reaches the terminal height, which pushed the search box off the top,
   // so stay one line under it.
   const windowSize = Math.max(1, termRows - 1 - 8);
+  // Screen row of the first result: title, blank, search box, "Searching by",
+  // blank, column header come first. Holds because launch clears the screen and
+  // homes the cursor, so the app's first line is the screen's first row.
+  const resultsTop = 7;
+
+  useMouseReporting(mode === "search");
 
   // debounced search on query / field change
   useEffect(() => {
@@ -242,8 +288,27 @@ export function App({ total }) {
       exit();
       return;
     }
+    const mouse = parseMouse(input);
     if (mode === "detail") {
-      if (key.escape || key.leftArrow) setMode("search");
+      if (!mouse && (key.escape || key.leftArrow)) setMode("search");
+      return;
+    }
+    if (mouse) {
+      for (const { button, y, press } of mouse) {
+        if (button === WHEEL_DOWN) setSelected((s) => Math.min(rows.length - 1, s + 1));
+        else if (button === WHEEL_UP) setSelected((s) => Math.max(0, s - 1));
+        else if (button === LEFT_BUTTON && press) {
+          const start = windowStart(selected, rows.length, windowSize);
+          const offset = y - resultsTop;
+          const idx = start + offset;
+          if (offset >= 0 && offset < windowSize && rows[idx]) {
+            setSelected(idx);
+            setDetailRowid(rows[idx].rowid);
+            setMode("detail");
+            return;
+          }
+        }
+      }
       return;
     }
     // search mode navigation
@@ -308,5 +373,11 @@ export function App({ total }) {
 // Auto-launch only when run directly (not when imported by tests).
 if (import.meta.main) {
   const total = totalCount();
+  if (process.stdout.isTTY) {
+    // start at the top-left so mouse rows map onto the layout (see resultsTop)
+    process.stdout.write("\x1b[2J\x1b[H");
+    // never leave the terminal reporting the mouse, even on a crash
+    process.on("exit", () => process.stdout.write(MOUSE_OFF));
+  }
   render(<App total={total} />);
 }
