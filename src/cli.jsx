@@ -112,7 +112,7 @@ function Results({ rows, selected, windowSize }) {
 
   return (
     <Box flexDirection="column" marginTop={1}>
-      <Text color="gray" dimColor>
+      <Text color="gray" dimColor wrap="truncate-end">
         {"  "}
         {"County".padEnd(9)} {" "}
         {"Owner".padEnd(30)} {" "}
@@ -125,7 +125,7 @@ function Results({ rows, selected, windowSize }) {
         const active = idx === selected;
         return (
           <Box key={row.rowid}>
-            <Text color={active ? "cyan" : undefined} inverse={active}>
+            <Text color={active ? "cyan" : undefined} inverse={active} wrap="truncate-end">
               {active ? "› " : "  "}
               {txt(row.County).padEnd(9).slice(0, 9)} {" "}
               {txt(row.OwnerName).padEnd(30).slice(0, 30)} {" "}
@@ -137,7 +137,7 @@ function Results({ rows, selected, windowSize }) {
         );
       })}
       <Box marginTop={1}>
-        <Text color="gray">
+        <Text color="gray" wrap="truncate-end">
           {rows.length} match{rows.length === 1 ? "" : "es"}
           {rows.length >= 200 ? " (showing first 200 — refine search)" : ""} · ↑↓ move · Enter
           open · Ctrl+C quit
@@ -171,28 +171,47 @@ function editLine({ value, cursor }, { input, key }) {
   return { value, cursor };
 }
 
-function SearchBox({ value, cursor, placeholder }) {
+// Always one line: when the query outgrows the width, scroll it sideways to keep
+// the cursor in view rather than wrapping, so the results below never shift.
+function SearchBox({ value, cursor, placeholder, width }) {
   if (!value) {
     return (
-      <Text>
+      <Text wrap="truncate-end">
         <Text inverse>{placeholder[0]}</Text>
         <Text color="gray">{placeholder.slice(1)}</Text>
       </Text>
     );
   }
+  const start = Math.max(0, cursor - (width - 1));
+  const shown = value.slice(start, start + width);
+  const at = cursor - start;
   return (
-    <Text>
-      {value.slice(0, cursor)}
-      <Text inverse>{value[cursor] ?? " "}</Text>
-      {value.slice(cursor + 1)}
+    <Text wrap="truncate-end">
+      {shown.slice(0, at)}
+      <Text inverse>{shown[at] ?? " "}</Text>
+      {shown.slice(at + 1)}
     </Text>
   );
+}
+
+// Terminal size that re-renders the app when the window is resized.
+function useTerminalSize() {
+  const { stdout } = useStdout();
+  const read = () => ({ rows: stdout?.rows || 24, columns: stdout?.columns || 80 });
+  const [size, setSize] = useState(read);
+  useEffect(() => {
+    if (!stdout) return;
+    const onResize = () => setSize(read());
+    stdout.on("resize", onResize);
+    return () => stdout.off("resize", onResize);
+  }, [stdout]);
+  return size;
 }
 
 // ---------- app ----------
 export function App({ total }) {
   const { exit } = useApp();
-  const { stdout } = useStdout();
+  const { rows: termRows, columns: termCols } = useTerminalSize();
   const [{ value: query, cursor }, edit] = useReducer(editLine, { value: "", cursor: 0 });
   const [rows, setRows] = useState([]);
   const [selected, setSelected] = useState(0);
@@ -200,8 +219,12 @@ export function App({ total }) {
   const [searchBy, setSearchBy] = useState("owner"); // "owner" | "address"
   const [detailRowid, setDetailRowid] = useState(null);
 
-  // how many result lines fit (leave room for header/input/footer)
-  const windowSize = Math.max(5, (stdout?.rows || 24) - 9);
+  // How many result rows fit. Every line in search mode is held to one terminal
+  // line, so the budget is exact: title, blank, search box, "Searching by", blank,
+  // column header, blank, footer = 8 lines. Ink clears and scrolls the screen once
+  // output reaches the terminal height, which pushed the search box off the top,
+  // so stay one line under it.
+  const windowSize = Math.max(1, termRows - 1 - 8);
 
   // debounced search on query / field change
   useEffect(() => {
@@ -242,12 +265,12 @@ export function App({ total }) {
 
   return (
     <Box flexDirection="column">
-      <Box>
+      <Text wrap="truncate-end">
         <Text bold color="green">
           Ramsey + Hennepin County, MN — Parcel Search
         </Text>
         <Text color="gray">  ({total.toLocaleString()} parcels)</Text>
-      </Box>
+      </Text>
 
       {mode === "search" ? (
         <>
@@ -256,6 +279,7 @@ export function App({ total }) {
             <SearchBox
               value={query}
               cursor={cursor}
+              width={Math.max(1, termCols - 12)}
               placeholder={
                 searchBy === "address"
                   ? "e.g. 1930 rice st  /  labore rd"
@@ -264,7 +288,7 @@ export function App({ total }) {
             />
           </Box>
           <Box>
-            <Text color="gray">
+            <Text color="gray" wrap="truncate-end">
               Searching by{" "}
               <Text color="cyan" bold>
                 {searchBy === "address" ? "address" : "owner name"}

@@ -71,5 +71,18 @@ const afterHenn = lastFrame();
 assert(/NICOLLET AVE/.test(afterHenn), "address search finds Hennepin (Minneapolis) parcels");
 assert(/Hennepin/.test(afterHenn), "Hennepin results are tagged Hennepin");
 
+// 7. a long result list must not scroll the search box away (PROP-1). The test
+// stdout is 100 columns with no rows, so the app budgets for a 24-line terminal;
+// Ink scrolls the screen once a frame reaches that height.
+const lines = afterHenn.split("\n");
+assert(lines.length < 24, `long result list fits the terminal (${lines.length} < 24 lines)`);
+assert(/^Address:/.test(lines[2]), "search box stays on the third line");
+assert(lines.every((l) => l.length <= 100), "no line is wider than the terminal");
+stdin.write(" and a very long tail that runs well past the edge of the terminal window");
+await sleep(250);
+const longLines = lastFrame().split("\n");
+assert(/^Address:/.test(longLines[2]) && /window\s*$/.test(longLines[2]), "long query scrolls sideways on one line, cursor in view");
+assert(/Searching by/.test(longLines[3]), "long query does not wrap onto the next line");
+
 console.log(failures === 0 ? "\nALL PASSED" : `\n${failures} FAILED`);
 process.exit(failures === 0 ? 0 : 1);
